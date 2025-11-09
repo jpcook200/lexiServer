@@ -2,7 +2,24 @@ const fs = require("fs");
 const pool = require("./db");
 const OpenAI = require("openai");
 const { z } = require("zod");
-const commonLanguages = require("./commonLanguages");
+const player = require('play-sound')({});
+const { getWordsArrayFromCSV } = require("./src/words/wordsHelpers");
+const categories = [
+        "general",
+        "people/relationships",
+        "daily life",
+        "home",
+        "travel/places",
+        "education/work",
+        "health/body",
+        "food/drink",
+        "shopping",
+        "nature/animals",
+        "technology",
+        "entertainment/culture",
+        "society/politics",
+        "advanced/abstract"
+  ];
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -14,26 +31,18 @@ const wordSchema = z.object({
     difficulty: z.enum(["a1", "a2", "b1", "b2", "c1", "c2"]),
     example_sentence: z.string().min(1),
     pronunciation: z.string().optional().default(""),
-    category: z.string().optional().default("general"),
+    category: z.enum(categories).optional().default("general")
 });
 
-function getWordsArrayFromCSV(filePath) {
-  const data = fs.readFileSync(filePath, "utf8");
-  return data
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .map((word, index) => ({
-      id: index + 1,
-      word
-    }));
-}
 
-const wordsArray = getWordsArrayFromCSV("./assets/english-frequency-list.csv").slice(0, 80);
 
+const wordsArray = getWordsArrayFromCSV("./assets/english-frequency-list.csv");
+
+let count = 0
 
 const addEnglishWords = async () => {
     try {
+        
         await pool.query('BEGIN');
         for (const word of wordsArray) {
             const id = word.id;
@@ -43,6 +52,7 @@ const addEnglishWords = async () => {
             );
             if (wordResult.rows.length > 0) {
                 console.log(`Word with id ${id} already exists, skipping.`);
+                count++
                 continue;
             }
 
@@ -52,19 +62,26 @@ const addEnglishWords = async () => {
             );
             if (translationsResult.rows.length > 0) {
                 console.log(`Translation for word id ${id} in English already exists, skipping.`);
+                count++
                 continue;
             }
-            const prompt = `
+           const prompt = `
                 Provide JSON describing the English word "${word.word}".
-                Return strictly this JSON:
+                Return strictly this JSON. Ensure that the "category" field is always one of the following options. Do NOT invent any other categories:
+
+                ${categories}
+
                 {
                     "definition": "<short definition>",
                     "part_of_speech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection>",
                     "difficulty": <CEFR-style levels: a1, a2, b1, b2, c1, c2>,
                     "example_sentence": "<short sentence using the word>",
                     "pronunciation": "<IPA or phonetic spelling>",
-                    "category": "<category like 'general', 'business', 'travel', etc>"
-                }`;
+                    "category": "<one of the allowed categories above>"
+                }
+
+                IMPORTANT: The "category" field must match exactly one of the listed categories. No other values are allowed.`;
+
             
             const response = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
@@ -108,10 +125,16 @@ const addEnglishWords = async () => {
                     validated.difficulty,
                 ]
             );
-            console.log(`✅ Added word: ${word.word}`);
+            
             await pool.query('COMMIT');
+            console.log(`✅ Added word: ${word.word}`);
+            count++
+            console.log(count)
         }  
     } catch (error) {
+        player.play('./assets/errorsound.mp3', function(err){
+            if (err) console.error("Could not play sound:", err);
+        });
         await pool.query('ROLLBACK');
         console.error("Error adding words:", error);   
     }
@@ -119,8 +142,9 @@ const addEnglishWords = async () => {
 
 const addWordsByLanguage = async (lang) => { 
     try {
-        await pool.query('BEGIN');
+        
         for (const word of wordsArray) {
+            await pool.query('BEGIN');
             const id = word.id;
             const wordResult = await pool.query(
                 `SELECT id FROM words WHERE id = $1`,
@@ -128,6 +152,7 @@ const addWordsByLanguage = async (lang) => {
             );
             if (wordResult.rows.length === 0) {
                 console.log(`Word with id ${id} not found, skipping translation.`);
+                count++
                 continue;
             }
 
@@ -137,15 +162,17 @@ const addWordsByLanguage = async (lang) => {
             );
             if (translationsResult.rows.length > 0) {
                 console.log(`Translation for word id ${id} in ${lang.name} already exists, skipping.`);
+                count++
                 continue;
             }
 
             const prompt = `
-                Provide JSON describing the English word "${word.word}" and its ${lang.name} translation provide all items strictly in ${lang.name}.
+                Provide JSON describing the English word "${word.word}" and its ${lang.name} translation.
+                Check to enusre your response is correct and ensure the ${lang.name} word is present in your example sentence before sending back.
                 Return strictly this JSON:
                 {
                     "definition": "<short definition in ${lang.name}>",
-                    "part_of_speech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection>",
+                    "part_of_speech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection> in strictly English",
                     "difficulty": <CEFR-style levels: a1, a2, b1, b2, c1, c2>,
                     "example_sentence": "<short sentence using the word in ${lang.name}>",
                     "pronunciation": "<IPA or phonetic spelling for how its pronouced in ${lang.name}>",
@@ -196,10 +223,12 @@ const addWordsByLanguage = async (lang) => {
                     validated.gender
                 ]
             );
+            
+            await pool.query('COMMIT');
             console.log(`✅ Added word: ${word.word} in ${lang.name}`);
-        }
-
-        await pool.query('COMMIT');
+            count++
+            console.log(count)
+        }  
     } catch (error) {
         await pool.query('ROLLBACK');
         console.error("Error fetching words by language:", error);
@@ -207,6 +236,6 @@ const addWordsByLanguage = async (lang) => {
 };
 
 
+// addWordsByLanguage(commonLanguages[2]);
 
-addWordsByLanguage(commonLanguages[1]);
-
+addEnglishWords()

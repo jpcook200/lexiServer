@@ -24,8 +24,6 @@ const datetimeValid = (userDatetime) => {
     // Difference in milliseconds for time leeway
     const diffMs = Math.abs(serverDate.getTime() - clientDate.getTime());
     const fiveMinutes = 5 * 60 * 1000;
-    console.log(diffMs)
-    console.log(sameDate)
 
     if (sameDate && diffMs <= fiveMinutes) {
         return true;
@@ -79,6 +77,8 @@ const getDailyWords = async (req, res) => {
             const { rows: additionalRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulties[difficultyIndex], additionalLimit, parsedExcludeIds]);
             rows.push(...additionalRows);
         }
+
+        console.log(rows[0])
 
         return res.json({ words: rows, lastSet: false });
 

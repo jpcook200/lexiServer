@@ -4,7 +4,7 @@ require('dotenv').config();
 const pool = new Pool({
     user: 'jcook',
     host: 'localhost',
-    database: 'lexiApp',
+    database: 'lexigram',
     password: '',
     port: 5432,
 });
