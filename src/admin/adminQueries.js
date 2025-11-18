@@ -9,6 +9,7 @@ const getFilteredWords = `
         t.difficulty,
         t.sentence,
         t.pronunciation,
+        t.gender,
         w.category,
         w.premium,
         w.private,
@@ -57,7 +58,8 @@ const getWordById = `
         t.part_of_speech,
         t.pronunciation,
         t.sentence,
-        t.difficulty
+        t.difficulty,
+        t.gender
     FROM words w
     JOIN translations t
         ON w.id = t.word_id
@@ -71,8 +73,9 @@ const editTranslation = `
         part_of_speech = $3,
         pronunciation = $4,
         sentence = $5,
-        difficulty = $6
-    WHERE word_id = $7 AND lang_code = $8
+        difficulty = $6,
+        gender = $7
+    WHERE word_id = $8 AND lang_code = $9
     RETURNING *;    
 `
 

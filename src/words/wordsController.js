@@ -6,14 +6,14 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 const difficulties = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
-
+const freeWPDLimit = 10;
 const getLanguageName = (code) => {
     const lang = commonLanguages.find(l => l.code === code);
     return lang ? lang.name : null;
 }
 
 const datetimeValid = (userDatetime) => { 
-    const clientDate = new Date(localDatetime);
+    const clientDate = new Date(userDatetime);
     const serverDate = new Date();
     // Compare year, month, and day
     const sameDate = 
@@ -39,7 +39,8 @@ const getDailyWords = async (req, res) => {
     const limit = parseInt(req.query.limit);
     const excludeIds = req.body.excludeIds || [];
     const localDatetime = req.body.localDatetime;
-    console.log(excludeIds)
+    const userPremium = req.userAccessLevel === 'pro';
+    
     const parsedExcludeIds = excludeIds.map(id => JSON.parse(id)); 
     try {
         if(!nativeLang || !learningLang || !difficulty || !limit) {
@@ -54,33 +55,49 @@ const getDailyWords = async (req, res) => {
         if(nativeLang.length !== 2 || learningLang.length !== 2) {
             return res.status(400).json({ error: "Language codes must be 2-letter ISO codes." });
         }
+
+        if (!userPremium && limit > freeWPDLimit) { 
+            return res.status(403).json({ words: [], error: `Free users can only request up to ${freeWPDLimit} words per day.` });
+        }
         
-        // //needs to early return in peoduxctioun
-        // if (localDatetime && !datetimeValid(localDatetime)) {
-        //     res.status(401).json({ error: "Client datetime is not valid or out of sync." });
-        // }
+        //needs to early return in peoduxctioun
+        if (localDatetime && !datetimeValid(localDatetime) && process.env.NODE_ENV === 'production') {
+            res.status(401).json({ error: "Client datetime is not valid or out of sync." });
+        }
         
+        let wordsResults = []
         //get words from db
-        const { rows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+        if (!userPremium) {
+            const { rows: freeRows } = await pool.query(queries.getFreeWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+            wordsResults = freeRows;
+        } else { 
+            const { rows: premiumRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+            wordsResults = premiumRows;
+        }
         
         let difficultyIndex = difficulties.indexOf(difficulty);
         
         //if rows returns are not enough
-        while (rows.length < limit) { 
+        while (wordsResults.length < limit) { 
             if (difficultyIndex >= difficulties.length - 1) {
-                return res.json({words: rows, lastSet: true});
+                return res.json({words: wordsResults, lastSet: true});
             }
-            const additionalLimit = limit - rows.length;
+            const additionalLimit = limit - wordsResults.length;
+            let additionalWords = []; 
+            
             difficultyIndex++;
-            console.log(rows.length, limit);
-            console.log("Fetching additional words with difficulty:", difficulties[difficultyIndex]);
-            const { rows: additionalRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulties[difficultyIndex], additionalLimit, parsedExcludeIds]);
-            rows.push(...additionalRows);
+            
+            if (!userPremium) {
+                const { rows: freeAdditionalRows } = await pool.query(queries.getFreeWords, [nativeLang, learningLang, difficulties[difficultyIndex], additionalLimit, parsedExcludeIds]);
+                additionalWords = freeAdditionalRows;
+            } else { 
+                const { rows: premiumAdditionalRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulties[difficultyIndex], additionalLimit, parsedExcludeIds]);
+                additionalWords = premiumAdditionalRows;
+            }
+            wordsResults.push(...additionalWords);
         }
 
-        console.log(rows[0])
-
-        return res.json({ words: rows, lastSet: false });
+        return res.json({ words: wordsResults, lastSet: false });
 
     } catch (error) {
         
@@ -91,7 +108,6 @@ const getDailyWords = async (req, res) => {
 
 const textToSpeech = async (req, res) => { 
     const { text, lang } = req.body;
-
 
     if(!text || !lang) {
         return res.status(400).json({ error: "Missing required body parameters." });
@@ -115,7 +131,39 @@ const textToSpeech = async (req, res) => {
     }
 };
 
+const getWordsCount = async (req, res) => {
+    try {
+        const langCode = req.query.langCode;
+        const premium = req.query.premium === 'true';
+
+        console.log("Running count with:", { langCode, premium });
+
+        let query = `
+            SELECT COUNT(*) AS count
+            FROM words w
+            JOIN translations l ON l.word_id = w.id
+            WHERE l.lang_code = $1
+                AND w.private = false
+        `;
+
+        // Add premium filter only when premium = false
+        if (!premium) {
+            query += ` AND w.premium = false`;
+        }
+
+        const { rows } = await pool.query(query, [langCode]);
+        console.log(rows)
+        return res.json({ count: rows[0].count });
+
+    } catch (error) {
+        console.error("Error fetching words count:", error);
+        return res.status(500).json({ error: "Failed to count words" });
+    }
+};
+
+
 module.exports = {
     getDailyWords,
-    textToSpeech
+    textToSpeech,
+    getWordsCount
 }

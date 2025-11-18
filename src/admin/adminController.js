@@ -3,6 +3,7 @@ const queries = require("./adminQueries");
 const OpenAI = require("openai");
 const { z } = require("zod");
 const { getWordsArrayFromCSV, getLanguageName } = require("../words/wordsHelpers");
+const { promptsByLanguage, getPromptByLanguage } = require("./prompts");
 const player = require('play-sound')({});
 
 const openai = new OpenAI({
@@ -43,25 +44,33 @@ const getFilteredWords = async (req, res) => {
 const wordSchema = z.object({
   definition: z.string(),
   part_of_speech: z.enum([
-  "noun",
-  "verb",
-  "adjective",
-  "adverb",
-  "pronoun",
-  "preposition",
-  "conjunction",
-  "interjection",
-  "determiner",
-  "exclamation"
-]),
+    "noun",
+    "verb",
+    "adjective",
+    "adverb",
+    "pronoun",
+    "preposition",
+    "conjunction",
+    "interjection",
+    "determiner",
+    "exclamation",
+    "particle",
+    "expression"
+  ]),
+  gender: z.enum([
+        "male",
+        "female",
+        "neutral"
+    ]),
 
   difficulty: z.string()
     .transform(val => val.toLowerCase())
     .refine(val => ["a1","a2","b1","b2","c1","c2"].includes(val), {
       message: "Invalid CEFR difficulty level"
     }),
-  example_sentence: z.string(),
-  phonetic_IPA: z.string().min(1)
+    example_sentence: z.string(),
+    phonetic_IPA: z.string().min(1),
+    
 });
 
 
@@ -199,19 +208,8 @@ const addWordsMetaData = async (req, res) => {
             await pool.query('BEGIN');
             const id = wordRow.id;
             const wordText = wordRow.word;
-
-            const prompt = `
-                Provide a JSON object with the following fields for the word "${wordText}" in ${languageName}:
-
-                {
-                    "definition": "<definition of the word in ${languageName}>",
-                    "part_of_speech": "<part of speech - STRICTLY in English either noun, verb, adjective, adverb, pronoun, preposition, conjunction, or interjection, determiner, exclamation>",
-                    "difficulty": "< STRICTLY EFR difficulty level in lowercase: a1, a2, b1, b2, c1, or c2>",
-                    "example_sentence": "<an example sentence using the word in ${languageName}>"
-                    "phonetic_IPA": "<Phonetic pronunciation of the word in STRICTLY IPA format>"
-                }
-                Ensure the information is accurate and relevant to the ${languageName} language except the phonetic_IPA which must be in IPA format AND part_of_speech which must be in English.
-            `;
+            console.log(`-- Updating word: ${wordText} with metadata`);
+            const prompt = getPromptByLanguage(languageCode, wordText, languageName);
 
             const response = await openai.chat.completions.create({
                 model: "gpt-4o-mini",
@@ -238,14 +236,16 @@ const addWordsMetaData = async (req, res) => {
                     pronunciation = $2,
                     definition = $3,
                     sentence = $4,
-                    difficulty = $5
-                WHERE word_id = $6 AND lang_code = $7`,
+                    difficulty = $5,
+                    gender = $6
+                WHERE word_id = $7 AND lang_code = $8`,
                 [
                     validated.part_of_speech,
                     validated.phonetic_IPA,
                     validated.definition,
                     validated.example_sentence,
                     validated.difficulty.toLowerCase(),
+                    validated.gender[0],
                     id,
                     languageCode
                 ]
@@ -307,7 +307,8 @@ const getWordById = async (req, res) => {
 const editTranslation = async (req, res) => {
     const wordId = req.params.id;
     const langCode = req.params.langCode;
-    const { word, definition, part_of_speech, pronunciation, sentence, difficulty, category } = req.body;
+    const { word, definition, part_of_speech, pronunciation, sentence, difficulty, category, gender } = req.body;
+    console.log(gender)
     try {
         await pool.query("BEGIN")
         await pool.query(
@@ -319,6 +320,7 @@ const editTranslation = async (req, res) => {
                 pronunciation,
                 sentence,
                 difficulty,
+                gender,
                 wordId,
                 langCode
             ]
@@ -373,6 +375,16 @@ const togglePremium = async (req, res) => {
     }
 }
 
+const addEnglishWords = async () => { 
+    const { words } = req.body
+    try { 
+        console.log("Adding English words:", words);
+    }catch (error) {
+        console.error("Error adding English words:", error);
+        res.status(500).json({ error });
+    }
+}
+
 module.exports = {
     getFilteredWords,
     translateWordsToLanguage,
@@ -381,5 +393,6 @@ module.exports = {
     getWordById,
     editTranslation,
     togglePremium,
-    togglePrivate
+    togglePrivate,
+    addEnglishWords,
 };
