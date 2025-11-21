@@ -37,13 +37,14 @@ const validateSubscription = async (req, res, next) => {
         ? 'https://api.storekit.itunes.apple.com/inApps/v1/subscriptions/'
         : 'https://api.storekit-sandbox.itunes.apple.com/inApps/v1/subscriptions/';
     const transactionId = req.headers["transaction-id"];
+    console.log('Transaction ID:', transactionId);
     if (!transactionId) {
       req.userAccessLevel = 'free';
       return next();
     
     }
     const jwtToken = generateAppleJWT();
-
+    console.log('Generated JWT Token:', jwtToken);
     const response = await fetch(`${appleURL}${transactionId}`, {
         method: 'GET',
         headers: {
