@@ -1,6 +1,6 @@
 const pool = require('../../db.js');
 const queries = require('./wordsQueries');
-const commonLanguages = require('../../commonLanguages');
+const { commonLanguages } = require('../../commonLanguages');
 const OpenAI = require("openai");
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,

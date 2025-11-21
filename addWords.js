@@ -4,22 +4,7 @@ const OpenAI = require("openai");
 const { z } = require("zod");
 const player = require('play-sound')({});
 const { getWordsArrayFromCSV } = require("./src/words/wordsHelpers");
-const categories = [
-        "general",
-        "people/relationships",
-        "daily life",
-        "home",
-        "travel/places",
-        "education/work",
-        "health/body",
-        "food/drink",
-        "shopping",
-        "nature/animals",
-        "technology",
-        "entertainment/culture",
-        "society/politics",
-        "advanced/abstract"
-  ];
+
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -58,6 +43,7 @@ const addEnglishWords = async () => {
                 `SELECT * FROM translations WHERE word_id = $1 AND lang_code = $2`,
                 [id, "en"]
             );
+            
             if (translationsResult.rows.length > 0) {
                 console.log(`Translation for word id ${id} in English already exists, skipping.`);
                 count++
@@ -74,7 +60,7 @@ const addEnglishWords = async () => {
                     "part_of_speech": "<noun|verb|adjective|adverb|pronoun|preposition|conjunction|interjection>",
                     "difficulty": <CEFR-style levels: a1, a2, b1, b2, c1, c2>,
                     "example_sentence": "<short sentence using the word>",
-                    "pronunciation": "<IPA or phonetic spelling>",
+                    "phonetic_IPA": "<IPA or phonetic spelling>",
                     "category": "<one of the allowed categories above>"
                 }
 
@@ -117,7 +103,7 @@ const addEnglishWords = async () => {
                     "en",
                     word.word,
                     validated.part_of_speech,
-                    validated.pronunciation,
+                    validated.phonetic_IPA,
                     validated.definition,
                     validated.example_sentence,
                     validated.difficulty,

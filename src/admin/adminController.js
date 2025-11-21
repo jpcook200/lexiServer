@@ -5,6 +5,7 @@ const { z } = require("zod");
 const { getWordsArrayFromCSV, getLanguageName } = require("../words/wordsHelpers");
 const { promptsByLanguage, getPromptByLanguage } = require("./prompts");
 const player = require('play-sound')({});
+const { categories } = require("../../commonLanguages")
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
@@ -80,19 +81,36 @@ const translationSchema = z.object({
 
 const translateWordsToLanguage = async (req, res) => { 
     const { languageCode, lowerIndex, upperIndex, all } = req.body;
-    const wordsArray = all ? getWordsArrayFromCSV("./assets/english-frequency-list.csv") : getWordsArrayFromCSV("./assets/english-frequency-list.csv").slice(lowerIndex, upperIndex);
     const languageName = getLanguageName(languageCode);
     try {
         if(!languageCode || !languageName) {
             return res.status(400).json({ error: "Invalid language code." });
         }
+
+        const { rows: words } = await pool.query(
+            `SELECT 
+                w.id,
+                t.word
+            FROM words w
+            LEFT JOIN translations t 
+                ON w.id = t.word_id 
+                AND t.lang_code = $1
+            WHERE t.word IS NOT NULL
+            ORDER BY w.id ASC`,
+            ['en']
+        );
+
+        const wordsArray = words.map(wordRow => { 
+            return { id: wordRow.id, word: wordRow.word }
+        })
+        const wordsToProcess = all ? words : wordsArray.slice(lowerIndex - 1, upperIndex);
         let count = 0
-        for (const word of wordsArray) {
+        for (const word of wordsToProcess) {
             await pool.query('BEGIN');
             const id = word.id;
             const wordResult = await pool.query(
                 `SELECT id FROM words WHERE id = $1`,
-                [id,]
+                [id]
             );
 
             if (wordResult.rows.length === 0) {
@@ -201,9 +219,10 @@ const addWordsMetaData = async (req, res) => {
             [languageCode]
         );
 
-        const wordsToProcess = all ? words : words.slice(lowerIndex, upperIndex);
+        const wordsToProcess = all ? words : words.slice(lowerIndex -1, upperIndex);
         let count = 0
-        console.log(wordsToProcess)
+        console.log("words to process: ", wordsToProcess)
+        
         for (const wordRow of wordsToProcess) {
             await pool.query('BEGIN');
             const id = wordRow.id;
@@ -261,7 +280,7 @@ const addWordsMetaData = async (req, res) => {
             if (err) console.error("Could not play sound:", err);
         });
         
-        res.status(200).json({ message: "Word metadata added successfully.", count });
+        return res.status(200).json({ message: "Word metadata added successfully.", count });
         
     } catch (error) {
         player.play('./assets/errorsound.mp3', function (err) {
@@ -375,13 +394,90 @@ const togglePremium = async (req, res) => {
     }
 }
 
-const addEnglishWords = async () => { 
-    const { words } = req.body
+const addEnglishWords = async (req, res) => { 
+    const { wordsCSV } = req.body
+    let count = 0
     try { 
-        console.log("Adding English words:", words);
-    }catch (error) {
+        if (!wordsCSV || wordsCSV.length === 0) {
+            return res.status(400).json({ error: "No words provided." });
+        }
+        
+        const wordsArray = wordsCSV.split(',')
+        
+        for (word of wordsArray) { 
+            const formattedWord = word.trim().toLowerCase();
+            await pool.query('BEGIN');
+
+            const translationsResult = await pool.query(
+                `SELECT * FROM translations WHERE word = $1 AND lang_code = $2`,
+                [formattedWord, "en"]
+            );
+            
+            if (translationsResult.rows.length > 0) {
+                console.log(`Translation for word ${formattedWord} in English already exists, skipping.`);
+                count++
+                continue;
+            }
+
+            const prompt = getPromptByLanguage("en", formattedWord, "English");
+
+            const response = await openai.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+            });
+
+            let data;
+
+            try {
+                data = JSON.parse(response.choices[0].message.content);
+            } catch (jsonErr) {
+                throw new Error("Invalid JSON returned by OpenAI");
+            }
+
+            console.log("Word data:", data);
+
+            const extendedSchema = wordSchema.extend({
+                category: z.enum(categories)
+            });
+            const validated = extendedSchema.parse(data);
+            const { rows } = await pool.query(
+                `
+                    INSERT INTO words (category, private, premium)
+                    VALUES ($1, $2, $3)
+                    RETURNING id
+                `,
+                [validated.category, true, true]
+            );
+
+            const wordId = rows[0].id;
+            await pool.query(
+                `INSERT INTO translations 
+                (word_id, lang_code, word, part_of_speech, pronunciation, definition, sentence, difficulty, gender) 
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [
+                    wordId,
+                    "en",
+                    formattedWord,
+                    validated.part_of_speech,
+                    validated.phonetic_IPA,
+                    validated.definition,
+                    validated.example_sentence,
+                    validated.difficulty,
+                    "neutral"
+                ]
+            );
+            
+            await pool.query('COMMIT');
+            console.log(`✅ Added word: ${formattedWord}`);
+            count++
+            console.log(count)
+            
+        }
+        return res.status(200).json({ message: "English words added successfully.", count });
+    } catch (error) {
         console.error("Error adding English words:", error);
-        res.status(500).json({ error });
+        return res.status(500).json({ error });
     }
 }
 

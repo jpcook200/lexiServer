@@ -1,5 +1,5 @@
 const fs = require("fs");
-const commonLanguages = require("../../commonLanguages");
+const {commonLanguages} = require("../../commonLanguages");
 
 function getWordsArrayFromCSV(filePath) {
   const data = fs.readFileSync(filePath, "utf8");

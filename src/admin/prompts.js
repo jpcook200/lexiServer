@@ -1,10 +1,11 @@
-
+const { categories } = require('../../commonLanguages');
 
 function getPromptByLanguage(langCode, wordText, languageName) {
     const promptTemplates = {
         "en": `
-    Provide a JSON object with the following fields for the word "${wordText}" in ${languageName}:
-
+        Provide JSON describing the English word "${wordText}".
+        Return strictly this JSON. Ensure that the "category" field is always one of the following options. Do NOT invent any other categories:
+        ${categories}
     {
         "definition": "<definition of the word in ${languageName}>",
         "part_of_speech": "<part of speech - STRICTLY in English either noun, verb, adjective, adverb, pronoun, preposition, conjunction, or interjection, determiner, exclamation, particle, expression>",
@@ -12,9 +13,10 @@ function getPromptByLanguage(langCode, wordText, languageName) {
         "difficulty": "< STRICTLY EFR difficulty level in lowercase: a1, a2, b1, b2, c1, or c2>",
         "example_sentence": "<an example sentence in ${languageName} strictly including the ${languageName} word ${wordText}>"
         "phonetic_IPA": "<Phonetic pronunciation of the word in STRICTLY IPA format>"
+        "category": "<one of the allowed categories above>"
     }
-        Ensure the information is accurate and relevant to the ${languageName} language except the phonetic_IPA which must be in IPA format AND part_of_speech which must be in English.
-    `,
+        IMPORTANT: The "category" field must match exactly one of the listed categories. No other values are allowed.`,
+        
         "fr": `
     Fournissez un objet JSON avec les champs suivants pour le mot "${wordText}" en ${languageName} :
 

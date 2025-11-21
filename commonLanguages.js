@@ -11,5 +11,22 @@ const commonLanguages = [
     { name: "Hindi", code: "hi", flag: "🇮🇳" },
 ];
 
+const categories = [
+        "general",
+        "people/relationships",
+        "daily life",
+        "home",
+        "travel/places",
+        "education/work",
+        "health/body",
+        "food/drink",
+        "shopping",
+        "nature/animals",
+        "technology",
+        "entertainment/culture",
+        "society/politics",
+        "advanced/abstract"
+  ];
 
-module.exports = commonLanguages;
+
+module.exports = { commonLanguages, categories }
