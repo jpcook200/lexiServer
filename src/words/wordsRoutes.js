@@ -51,6 +51,7 @@ const validateSubscription = async (req, res, next) => {
             'Content-Type': 'application/json'
         }
     })
+    console.log(response)
     const data = await response.json();
     console.log('Apple subscription data:', data);
     if (data.data) { 

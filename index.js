@@ -25,6 +25,8 @@ const limiter = rateLimit({
   },
 });
 
+app.set('trust proxy', true);
+
 app.use(cors(corsOptions));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json({ limit: '10mb' }));
