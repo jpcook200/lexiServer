@@ -43,7 +43,7 @@ const validateSubscription = async (req, res, next) => {
     
     }
     const jwtToken = generateAppleJWT();
-    
+
     const response = await fetch(`${appleURL}${transactionId}`, {
         method: 'GET',
         headers: {
@@ -52,7 +52,7 @@ const validateSubscription = async (req, res, next) => {
         }
     })
     const data = await response.json();
-    
+    console.log('Apple subscription data:', data);
     if (data.data) { 
         req.userAccessLevel = 'pro';
     } else {
@@ -61,7 +61,7 @@ const validateSubscription = async (req, res, next) => {
     next()
 }
 
-router.post('/get-daily',console.log("hitting"), appAuth, validateSubscription, controller.getDailyWords);
+router.post('/get-daily', appAuth, validateSubscription, controller.getDailyWords);
 router.post('/text-to-speech', appAuth, controller.textToSpeech);
 router.get('/get-count', appAuth, controller.getWordsCount);
 
