@@ -10,6 +10,7 @@ SELECT
     l.definition AS learning_definition,
     l.difficulty AS learning_difficulty,
     l.sentence AS learning_sentence,
+    n.sentence AS native_sentence,
     l.gender AS learning_gender,
     l.lang_code AS learn_lang,
     n.lang_code AS native_lang
@@ -35,6 +36,7 @@ SELECT
     l.definition AS learning_definition,
     l.difficulty AS learning_difficulty,
     l.sentence AS learning_sentence,
+    n.sentence AS native_sentence,
     l.gender AS learning_gender,
     l.lang_code AS learn_lang,
     n.lang_code AS native_lang

@@ -21,7 +21,11 @@ const getFilteredWords = `
     LEFT JOIN translations en_t 
         ON en_t.word_id = t.word_id 
        AND en_t.lang_code = 'en'
-    WHERE ($1::text IS NULL OR LOWER(t.word) LIKE LOWER(CONCAT('%', $1::text, '%')))
+    WHERE (
+            $1::text IS NULL
+            OR LOWER(t.word) LIKE LOWER(CONCAT('%', $1::text, '%'))
+            OR CAST(w.id AS TEXT) = $1::text
+        )
       AND ($2::text IS NULL OR t.lang_code = $2::text)
       AND ($3::text IS NULL OR t.difficulty = $3::text)
       AND ($4::text IS NULL OR t.part_of_speech = $4::text)

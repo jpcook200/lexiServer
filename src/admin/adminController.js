@@ -7,9 +7,17 @@ const { promptsByLanguage, getPromptByLanguage } = require("./prompts");
 const player = require('play-sound')({});
 const { categories } = require("../../commonLanguages")
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+const model = "openai"
+
+const client =
+  model === "openai"
+    ? new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      })
+    : new OpenAI({
+        apiKey: process.env.DEEPSEEK_API_KEY,
+        baseURL: "https://api.deepseek.com",
+      });
 
 const getFilteredWords = async (req, res) => { 
     const { searchTerm, language, category, difficulty, partOfSpeech, limit, pageNo, sortBy = 'word', visibility = null, accessLevel = null } = req.body;
@@ -90,7 +98,8 @@ const translateWordsToLanguage = async (req, res) => {
         const { rows: words } = await pool.query(
             `SELECT 
                 w.id,
-                t.word
+                t.word,
+                t.definition
             FROM words w
             LEFT JOIN translations t 
                 ON w.id = t.word_id 
@@ -101,13 +110,21 @@ const translateWordsToLanguage = async (req, res) => {
         );
 
         const wordsArray = words.map(wordRow => { 
-            return { id: wordRow.id, word: wordRow.word }
+            return { id: wordRow.id, word: wordRow.word, definition: wordRow.definition };
         })
-        const wordsToProcess = all ? words : wordsArray.slice(lowerIndex - 1, upperIndex);
+        const wordsToProcess =
+            upperIndex === 0 && lowerIndex > 0
+                ? words.slice(lowerIndex - 1)   // from lowerIndex to the end
+                : all
+                ? words
+                    : words.slice(lowerIndex - 1, upperIndex);
+        
         let count = 0
         for (const word of wordsToProcess) {
             await pool.query('BEGIN');
             const id = word.id;
+            const englishDefinition = word.definition;
+
             const wordResult = await pool.query(
                 `SELECT id FROM words WHERE id = $1`,
                 [id]
@@ -131,7 +148,7 @@ const translateWordsToLanguage = async (req, res) => {
             }
 
             const prompt = `
-                Provide a JSON object that contains only the translation of the English word "${word.word}" into ${languageName}. 
+                Provide a JSON object that contains only the translation of the English word "${word.word}" into ${languageName}. Ensure the translation amtches the context of the following definition: "${englishDefinition}". 
                     Return strictly this JSON format and nothing else:
 
                     {
@@ -141,8 +158,8 @@ const translateWordsToLanguage = async (req, res) => {
                     Ensure the translation is accurate and represents the most common meaning of the English word.
                     `;
             
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
+            const response = await client.chat.completions.create({
+                model: model === "openai" ? "gpt-4o-mini" : "deepseek-chat",
                 messages: [{ role: "user", content: prompt }],
                 response_format: { type: "json_object" },
             });
@@ -209,29 +226,64 @@ const addWordsMetaData = async (req, res) => {
         const { rows: words } = await pool.query(
             `SELECT 
                 w.id,
-                t.word
+                t.word,
+                te.definition AS english_definition,
+                te.sentence AS english_sentence
             FROM words w
             LEFT JOIN translations t 
                 ON w.id = t.word_id 
                 AND t.lang_code = $1
+            LEFT JOIN translations te
+                ON w.id = te.word_id
+                AND te.lang_code = 'en'
             WHERE t.word IS NOT NULL
-            ORDER BY w.id ASC`,
+            ORDER BY w.id ASC;`,
             [languageCode]
         );
 
-        const wordsToProcess = all ? words : words.slice(lowerIndex -1, upperIndex);
+       const wordsToProcess =
+            upperIndex === 0 && lowerIndex > 0
+                ? words.slice(lowerIndex - 1)   // from lowerIndex to the end
+                : all
+                ? words
+                : words.slice(lowerIndex - 1, upperIndex);
+
         let count = 0
+
         console.log("words to process: ", wordsToProcess)
         
         for (const wordRow of wordsToProcess) {
             await pool.query('BEGIN');
-            const id = wordRow.id;
-            const wordText = wordRow.word;
-            console.log(`-- Updating word: ${wordText} with metadata`);
-            const prompt = getPromptByLanguage(languageCode, wordText, languageName);
 
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
+            const id = wordRow.id;
+            
+            const metaDataExists = await pool.query(
+                `SELECT * FROM translations 
+                WHERE word_id = $1 AND lang_code = $2
+                AND part_of_speech IS NOT NULL
+                AND definition IS NOT NULL
+                AND sentence IS NOT NULL
+                AND pronunciation IS NOT NULL
+                AND difficulty IS NOT NULL
+                AND gender IS NOT NULL`,
+                [id, languageCode]
+            );
+
+            if (metaDataExists.rows.length > 0) {
+                console.log(`Metadata for word id ${id} in ${languageName} already exists, skipping.`);
+                count++
+                continue;
+            }
+
+            const wordText = wordRow.word;
+            const englishDefinition = wordRow.english_definition;
+            const englishSentence = wordRow.english_sentence;
+            console.log("English definition:", englishDefinition);
+            console.log("English sentence:", englishSentence);
+            const prompt = getPromptByLanguage(languageCode, wordText, languageName, englishDefinition, englishSentence);
+
+            const response = await client.chat.completions.create({
+                model: model === "openai" ? "gpt-4o-mini" : "deepseek-chat",
                 messages: [{ role: "user", content: prompt }],
                 response_format: { type: "json_object" },
             });
@@ -421,8 +473,8 @@ const addEnglishWords = async (req, res) => {
 
             const prompt = getPromptByLanguage("en", formattedWord, "English");
 
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
+            const response = await client.chat.completions.create({
+                model: model === "openai" ? "gpt-4o-mini" : "deepseek-chat",
                 messages: [{ role: "user", content: prompt }],
                 response_format: { type: "json_object" },
             });

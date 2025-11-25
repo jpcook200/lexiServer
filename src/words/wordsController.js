@@ -6,7 +6,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 const difficulties = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
-const freeWPDLimit = 10;
+const freeWPDLimit = 15;
 const getLanguageName = (code) => {
     const lang = commonLanguages.find(l => l.code === code);
     return lang ? lang.name : null;
@@ -96,7 +96,6 @@ const getDailyWords = async (req, res) => {
             }
             wordsResults.push(...additionalWords);
         }
-
         return res.json({ words: wordsResults, lastSet: false });
 
     } catch (error) {

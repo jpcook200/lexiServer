@@ -1,132 +1,197 @@
 const { categories } = require('../../commonLanguages');
 
-function getPromptByLanguage(langCode, wordText, languageName) {
+function getPromptByLanguage(langCode, wordText, languageName, englishDefinition, englishSentence) {
     const promptTemplates = {
-        "en": `
-        Provide JSON describing the English word "${wordText}".
-        Return strictly this JSON. Ensure that the "category" field is always one of the following options. Do NOT invent any other categories:
-        ${categories}
-    {
-        "definition": "<definition of the word in ${languageName}>",
-        "part_of_speech": "<part of speech - STRICTLY in English either noun, verb, adjective, adverb, pronoun, preposition, conjunction, or interjection, determiner, exclamation, particle, expression>",
-        "gender": "<gender of the word STRICTLY male, female or neutral>",
-        "difficulty": "< STRICTLY EFR difficulty level in lowercase: a1, a2, b1, b2, c1, or c2>",
-        "example_sentence": "<an example sentence in ${languageName} strictly including the ${languageName} word ${wordText}>"
-        "phonetic_IPA": "<Phonetic pronunciation of the word in STRICTLY IPA format>"
-        "category": "<one of the allowed categories above>"
-    }
-        IMPORTANT: The "category" field must match exactly one of the listed categories. No other values are allowed.`,
+        en: `Provide JSON describing the English word "${wordText}".
+            Return strictly this JSON. Ensure that the "category" field is always one of the following options. Do NOT invent any other categories: ${categories}
+            {
+                "definition": "<definition of the word in ${languageName}>",
+                "part_of_speech": "<part of speech - STRICTLY in English either noun, verb, adjective, adverb, pronoun, preposition, conjunction, or interjection, determiner, exclamation, particle, expression>",
+                "gender": "<gender of the word STRICTLY male, female or neutral>",
+                "difficulty": "< STRICTLY EFR difficulty level in lowercase: a1, a2, b1, b2, c1, or c2>",
+                "example_sentence": "<an example sentence in ${languageName} strictly including the ${languageName} word ${wordText}>"
+                "phonetic_IPA": "<Phonetic pronunciation of the word in STRICTLY IPA format>"
+                "category": "<one of the allowed categories above>"
+            }
+                IMPORTANT: The "category" field must match exactly one of the listed categories. No other values are allowed.`,
         
-        "fr": `
-    Fournissez un objet JSON avec les champs suivants pour le mot "${wordText}" en ${languageName} :
+        fr: `Fournissez un objet JSON avec les champs suivants pour le mot « ${wordText} » en français. 
+            Le mot provient d’une entrée anglaise avec la définition suivante : « ${englishDefinition} ».  
+            La définition en français doit transmettre exactement le même sens que cette définition anglaise.  
+            La phrase d'exemple doit également refléter fidèlement ce sens.
+            {
+                "definition": "<définition du mot en français, en utilisant la définition anglaise seulement comme contexte pour le sens, et non pour une traduction mot à mot : ${englishDefinition}>",
+                "part_of_speech": "<partie du discours — STRICTEMENT en anglais : noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<genre du mot — DOIT être strictement male, female ou neutral>",
+                "difficulty": "<niveau de difficulté du mot : A1, A2, B1, B2, C1, C2>",
+                "example_sentence": <"Veuillez fournir la traduction directe de la phrase anglaise suivante : « ${englishSentence} ». La traduction doit être entièrement en français, inclure naturellement le mot « ${wordText} » et refléter fidèlement le sens donné par la définition anglaise : ${englishDefinition}.">
+                "phonetic_IPA": "<prononciation phonétique du mot en FORMAT IPA STRICT>"
+            }
+            Assurez-vous que :
+            - toutes les informations sont exactes et pertinentes pour la langue française,
+            - la définition et la phrase d’exemple correspondent fidèlement à la définition anglaise,
+            - phonetic_IPA est au format IPA STRICT,
+            - part_of_speech est STRICTEMENT en anglais.`,
+        
+        de: `Geben Sie ein JSON-Objekt mit den folgenden Feldern für das Wort „${wordText}“ auf Deutsch aus. 
+            Das Wort stammt aus einem englischen Eintrag mit der folgenden Definition: „${englishDefinition}“.  
+            Die Definition auf Deutsch muss genau die gleiche Bedeutung wie die englische Definition wiedergeben.  
+            Der Beispielsatz soll ebenfalls diese Bedeutung genau widerspiegeln.
 
-    {
-        "definition": "<définition du mot en ${languageName}>",
-        "part_of_speech": "<partie du discours - STRICTEMENT en anglais : noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<genre du mot, DOIT être strictement male, female ou neutral>",
-        "difficulty: "<niveau de difficulté du mot : A1, A2, B1, B2, C1, C2>",
-        "example_sentence": "<une phrase d'exemple en ${languageName} incluant strictement le mot ${wordText} en ${languageName}>",
-        "phonetic_IPA": "<Prononciation phonétique du mot en FORMAT IPA STRICTEMENT>"
-    }
-    Assurez-vous que les informations soient exactes et pertinentes pour la langue ${languageName}, sauf pour phonetic_IPA qui doit être en format IPA STRICT et part_of_speech qui doit être en anglais.
-`,
-        "de": `
-    Geben Sie ein JSON-Objekt mit den folgenden Feldern für das Wort "${wordText}" in ${languageName} an:
+            {
+                "definition": "<Definition des Wortes auf Deutsch, wobei die englische Definition nur als Kontext für die Bedeutung dient und nicht als wortwörtliche Übersetzung: ${englishDefinition}>",
+                "part_of_speech": "<Wortart — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<Genus des Wortes — MUSS strikt male, female oder neutral sein>",
+                "difficulty": "<Schwierigkeitsgrad des Wortes: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<Bitte geben Sie die direkte Übersetzung des folgenden englischen Satzes: «${englishSentence}». Die Übersetzung muss vollständig auf Deutsch sein, das Wort «${wordText}» natürlich enthalten und die Bedeutung der englischen Definition exakt widerspiegeln: ${englishDefinition}>",
+                "phonetic_IPA": "<Phonetische Aussprache des Wortes im STRICT IPA-FORMAT>"
+            }
 
-    {
-        "definition": "<Definition des Wortes in ${languageName}>",
-        "part_of_speech": "<Wortart - AUSSCHLIESSLICH auf Englisch: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<Genus des Wortes, MUSS strikt male, female oder neutral sein>",
-        "difficulty": "<AUSSCHLIESSLICH CEFR-Schwierigkeitsgrad in Kleinbuchstaben: a1, a2, b1, b2, c1 oder c2>",
-        "example_sentence": "<ein Beispielsatz in ${languageName}, der das ${languageName}-Wort ${wordText} AUSSCHLIESSLICH enthält>",
-        "phonetic_IPA": "<Phonetische Aussprache des Wortes im AUSSCHLIESSLICHEN IPA-FORMAT>"
-    }
-    Stellen Sie sicher, dass die Informationen genau und relevant für die Sprache ${languageName} sind, mit Ausnahme von phonetic_IPA, das im AUSSCHLIESSLICHEN IPA-Format vorliegen muss, und part_of_speech, das auf Englisch sein muss.
-`,
-        "es": `
-    Proporcione un objeto JSON con los siguientes campos para la palabra "${wordText}" en ${languageName}: 
-    { 
-        "definition": "<definición de la palabra en ${languageName}>",
-        "part_of_speech": "<parte del discurso - ESTRICTAMENTE en inglés: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<género de la palabra, DEBE ser estrictamente male, female o neutral>",
-        "difficulty": "<nivel de dificultad ESTRICTAMENTE CEFR en minúsculas: a1, a2, b1, b2, c1 o c2>",
-        "example_sentence": "<una oración de ejemplo en ${languageName} que incluya ESTRICTAMENTE la palabra ${wordText} en ${languageName}>",
-        "phonetic_IPA": "<pronunciación fonética de la palabra en FORMATO IPA ESTRICTAMENTE>"
-    }
-    Asegúrese de que la información sea precisa y relevante para el idioma ${languageName}, excepto phonetic_IPA que debe estar en formato IPA ESTRICTO y part_of_speech que debe estar en inglés.
-`,
-        "it": `
-    Fornisci un oggetto JSON con i seguenti campi per la parola "${wordText}" in ${languageName}:   
-    {   
-        "definition": "<definizione della parola in ${languageName}>",  
-        "part_of_speech": "<parte del discorso - STRETTAMENTE in inglese: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<genere della parola, DEVE essere rigorosamente male, female o neutral>",
-        "difficulty": "<livello di difficoltà STRETTAMENTE CEFR in minuscolo: a1, a2, b1, b2, c1 o c2>",    
-        "example_sentence": "<una frase di esempio in ${languageName} che includa STRETTAMENTE la parola ${wordText} in ${languageName}>",
-        "phonetic_IPA": "<pronuncia fonetica della parola in FORMATO IPA STRETTAMENTE>"
-    }   
-    Assicurati che le informazioni siano accurate e pertinenti per la lingua ${languageName}, ad eccezione di phonetic_IPA che deve essere in formato IPA STRETTO e part_of_speech che deve essere in inglese.
-`,
-        "pt": `
-    Forneça um objeto JSON com os seguintes campos para a palavra "${wordText}" em ${languageName}:   
-    {
-        "definition": "<definição da palavra em ${languageName}>",
-        "part_of_speech": "<parte do discurso - ESTRITAMENTE em inglês: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<gênero da palavra, DEVE ser estritamente male, female ou neutral>",
-        "difficulty": "<nível de dificuldade ESTRITAMENTE CEFR em minúsculas: a1, a2, b1, b2, c1 ou c2>",
-        "example_sentence": "<uma frase de exemplo em ${languageName} que inclua ESTRITAMENTE a palavra ${wordText} em ${languageName}>",
-        "phonetic_IPA": "<pronúncia fonética da palavra em FORMATO IPA ESTRITAMENTE>"
-    }
-    Certifique-se de que as informações sejam precisas e relevantes para o idioma ${languageName}, exceto phonetic_IPA que deve estar em formato IPA ESTRITO e part_of_speech que deve estar em inglês.
-`,
-        "ru": `
-    Предоставьте JSON-объект со следующими полями для слова "${wordText}" на ${languageName}:   
-    {
-        "definition": "<определение слова на ${languageName}>",
-        "part_of_speech": "<часть речи - СТРОГО на английском: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<род слова, ДОЛЖЕН быть строго male, female или neutral>",
-        "difficulty": "<уровень сложности СТРОГО CEFR в нижнем регистре: a1, a2, b1, b2, c1 или c2>",
-        "example_sentence": "<пример предложения на ${languageName}, строго включающий слово ${wordText} на ${languageName}>",
-        "phonetic_IPA": "<фонетическое произношение слова в СТРОГОМ IPA-ФОРМАТЕ>"
-    }
-    Убедитесь, что информация точна и актуальна для языка ${languageName}, за исключением phonetic_IPA, который должен быть в СТРОГОМ IPA-формате, и part_of_speech, который должен быть на английском языке.
-`,
-        "ja": `
-    "${wordText}"という単語について、${languageName}で以下のフィールドを含むJSONオブジェクトを提供してください:   
-    {   
-        "definition": "<${languageName}での単語の定義>",
-        "part_of_speech": "<品詞 - 英語でSTRICTLY: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<単語の性別は、厳密に male、"female、または neutral でなければなりません>",
-        "difficulty": "<CEFRスタイルの難易度レベルを小文字でSTRICTLY: a1, a2, b1, b2, c1, または c2>",
-        "example_sentence": "<${languageName}での例文で、${languageName}の単語${wordText}をSTRICTLYに含む>",
-        "phonetic_IPA": "<単語の発音をSTRICTLYなIPA形式で>"
-    }   
-    ${languageName}に関する情報が正確で関連性があることを確認してください。ただし、phonetic_IPAはSTRICTLYなIPA形式で、part_of_speechは英語である必要があります。
-`,
-        "zh": `
-    为"${wordText}"一词提供一个包含以下字段的JSON对象，语言为${languageName}：   
-    {   
-        "definition": "<${languageName}中该词的定义>",
-        "part_of_speech": "<词性 - 严格使用英语：noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": "<词的性别必须严格为 male、female 或 neutral>",
-        "difficulty": "<CEFR风格的难度等级，严格使用小写字母：a1, a2, b1, b2, c1或c2>",
-        "example_sentence": "<${languageName}中的例句，严格包含${languageName}单词${wordText}>",
-        "phonetic_IPA": "<该词的发音，严格使用IPA格式>"
-    }   
-    确保信息准确且与${languageName}语言相关，但phonetic_IPA必须为严格的IPA格式，part_of_speech必须为英语。
-`,
-        "hi": `
-    "${wordText}" शब्द के लिए ${languageName} में निम्नलिखित फ़ील्ड वाले JSON ऑब्जेक्ट प्रदान करें:   
-    {
-        "definition": "<${languageName} में शब्द की परिभाषा>",
-        "part_of_speech": "<भाग - STRICTLY अंग्रेजी में: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
-        "gender": <शब्द का लिंग, सख्ती से male, female या neutral ही होना चाहिए>,
-        "difficulty": "<CEFR-शैली के स्तर को छोटे अक्षरों में STRICTLY: a1, a2, b1, b2, c1 या c2>",
-        "example_sentence": "<${languageName} में एक उदाहरण वाक्य जो STRICTLY ${languageName} शब्द ${wordText} शामिल करता है>",
-        "phonetic_IPA": "<शब्द का उच्चारण STRICTLY IPA प्रारूप में>"
-    }   
-    सुनिश्चित करें कि जानकारी ${languageName} भाषा के लिए सटीक और प्रासंगिक हो, सिवाय phonetic_IPA के जो STRICTLY IPA प्रारूप में होना चाहिए और part_of_speech जो अंग्रेजी में होना चाहिए।
-`
+            Stellen Sie sicher, dass:
+            - alle Informationen korrekt und für die deutsche Sprache relevant sind,
+            - die Definition und der Beispielsatz exakt der englischen Definition entsprechen,
+            - phonetic_IPA im strikten IPA-Format ist,
+            - part_of_speech STRICTLY auf Englisch angegeben ist.`,
+        
+        it: `Fornisci un oggetto JSON con i seguenti campi per la parola «${wordText}» in italiano.  
+            La parola proviene da una voce inglese con la seguente definizione: «${englishDefinition}».  
+            La definizione in italiano deve trasmettere esattamente lo stesso significato della definizione inglese.  
+            La frase di esempio deve riflettere fedelmente questo significato.
+
+            {
+                "definition": "<Definizione della parola in italiano, usando la definizione inglese solo come contesto per il significato e non come traduzione letterale: ${englishDefinition}>",
+                "part_of_speech": "<Parte del discorso — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<Genere della parola — DEVE essere strettamente male, female o neutral>",
+                "difficulty": "<Livello di difficoltà della parola: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<Fornisci la traduzione diretta della seguente frase inglese: «${englishSentence}». La traduzione deve essere completamente in italiano, includere naturalmente la parola «${wordText}» e riflettere fedelmente il significato della definizione inglese: ${englishDefinition}>",
+                "phonetic_IPA": "<Pronuncia fonetica della parola in STRICT IPA FORMAT>"
+            }
+
+            Assicurati che:
+            - tutte le informazioni siano corrette e rilevanti per la lingua italiana,
+            - la definizione e la frase di esempio corrispondano fedelmente alla definizione inglese,
+            - phonetic_IPA sia nel formato IPA STRICT,
+            - part_of_speech sia STRICTLY in English.`,
+        
+        pt: `Forneça um objeto JSON com os seguintes campos para a palavra «${wordText}» em português.  
+            A palavra vem de uma entrada em inglês com a seguinte definição: «${englishDefinition}».  
+            A definição em português deve transmitir exatamente o mesmo sentido da definição em inglês.  
+            A frase de exemplo também deve refletir fielmente esse sentido.
+
+            {
+                "definition": "<Definição da palavra em português, usando a definição em inglês apenas como contexto para o significado e não como tradução literal: ${englishDefinition}>",
+                "part_of_speech": "<Parte do discurso — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<Gênero da palavra — DEVE ser estritamente male, female ou neutral>",
+                "difficulty": "<Nível de dificuldade da palavra: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<Forneça a tradução direta da seguinte frase em inglês: «${englishSentence}». A tradução deve ser totalmente em português, incluir naturalmente a palavra «${wordText}» e refletir fielmente o sentido dado pela definição em inglês: ${englishDefinition}>",
+                "phonetic_IPA": "<Pronúncia fonética da palavra em STRICT IPA FORMAT>"
+            }
+
+            Certifique-se de que:
+            - todas as informações sejam corretas e relevantes para o idioma português,
+            - a definição e a frase de exemplo correspondam fielmente à definição em inglês,
+            - phonetic_IPA esteja no formato IPA STRICT,
+            - part_of_speech seja STRICTLY in English.`,
+        
+        ru: `Предоставьте JSON-объект со следующими полями для слова «${wordText}» на русском языке.  
+            Слово происходит из английского слова с определением: «${englishDefinition}».  
+            Определение на русском должно точно передавать смысл этого английского определения.  
+            Пример предложения также должен точно отражать этот смысл.
+
+            {
+                "definition": "<Определение слова на русском языке, используя английское определение только как контекст для смысла, а не как дословный перевод: ${englishDefinition}>",
+                "part_of_speech": "<Часть речи — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<Род слова — ДОЛЖЕН быть строго male, female или neutral>",
+                "difficulty": "<Уровень сложности слова: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<Предоставьте прямой перевод следующего английского предложения: «${englishSentence}». Перевод должен быть полностью на русском, естественно включать слово «${wordText}» и точно отражать смысл, указанный в английском определении: ${englishDefinition}>",
+                "phonetic_IPA": "<Фонетическое произношение слова в STRICT IPA FORMAT>"
+            }
+
+            Убедитесь, что:
+            - вся информация точная и релевантная для русского языка,
+            - определение и пример предложения точно соответствуют английскому определению,
+            - phonetic_IPA в формате STRICT IPA,
+            - part_of_speech строго на английском.`,
+        
+        ja: `以下のJSONオブジェクトを「${wordText}」という単語のために作成してください。  
+            この単語は、次の英語の定義に由来します：「${englishDefinition}」。  
+            日本語の定義は、この英語の定義の意味を正確に伝える必要があります。  
+            例文も、この意味を正確に反映する必要があります。
+
+            {
+                "definition": "<単語の日本語での定義。英語の定義は意味の文脈としてのみ使用し、直訳は行わない: ${englishDefinition}>",
+                "part_of_speech": "<品詞 — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<単語の性別 — MUST be strictly male, female, or neutral>",
+                "difficulty": "<単語の難易度: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<次の英語の文を直接翻訳してください: «${englishSentence}». 翻訳は完全に日本語で行い、自然に「${wordText}」を含め、英語の定義で示された意味を正確に反映すること: ${englishDefinition}>",
+                "phonetic_IPA": "<単語の発音をSTRICT IPA FORMATで記述>"
+            }
+
+            以下を確認してください：
+            - すべての情報は正確で日本語として妥当であること、
+            - 定義と例文は英語の定義と正確に一致すること、
+            - phonetic_IPAはSTRICT IPA形式であること、
+            - part_of_speechは必ず英語であること。`,
+        
+        zh: `请为单词「${wordText}」提供一个JSON对象。  
+            该单词来自以下英文定义：「${englishDefinition}」。  
+            中文定义必须准确传达该英文定义的意义。  
+            例句也必须忠实反映该意义。
+
+            {
+                "definition": "<单词的中文定义，仅以英文定义作为意义参考，不做逐字翻译: ${englishDefinition}>",
+                "part_of_speech": "<词性 — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<单词的性别 — MUST be strictly male, female, or neutral>",
+                "difficulty": "<单词难度等级: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<请直接翻译以下英文句子: «${englishSentence}». 翻译必须完全为中文，自然包含「${wordText}」，并忠实反映英文定义的意义: ${englishDefinition}>",
+                "phonetic_IPA": "<单词的发音，STRICT IPA FORMAT>"
+            }
+
+            请确保：
+            - 所有信息都是准确且符合中文语言习惯的，
+            - 定义和例句忠实于英文定义，
+            - phonetic_IPA严格使用IPA格式，
+            -part_of_speech必须为英文。`,
+        
+        hi: `कृपया शब्द "${wordText}" के लिए एक JSON ऑब्जेक्ट प्रदान करें।  
+            यह शब्द निम्नलिखित अंग्रेज़ी परिभाषा से लिया गया है: "${englishDefinition}"।  
+            हिंदी में परिभाषा को इस अंग्रेज़ी परिभाषा का सही अर्थ स्पष्ट रूप से व्यक्त करना चाहिए।  
+            उदाहरण वाक्य भी इस अर्थ को सटीक रूप से प्रतिबिंबित करना चाहिए।
+
+            {
+                "definition": "<शब्द की हिंदी परिभाषा, केवल अंग्रेज़ी परिभाषा को संदर्भ के रूप में इस्तेमाल करें, शब्दशः अनुवाद न करें: ${englishDefinition}>",
+                "part_of_speech": "<शब्द का भाग — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<शब्द का लिंग — MUST be strictly male, female, or neutral>",
+                "difficulty": "<शब्द की कठिनाई स्तर: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<कृपया निम्नलिखित अंग्रेज़ी वाक्य का सीधे हिंदी में अनुवाद करें: «${englishSentence}». अनुवाद पूरी तरह से हिंदी में होना चाहिए, स्वाभाविक रूप से '${wordText}' शब्द शामिल होना चाहिए, और अंग्रेज़ी परिभाषा के अर्थ को सटीक रूप से प्रतिबिंबित करना चाहिए: ${englishDefinition}>",
+                "phonetic_IPA": "<शब्द का उच्चारण, STRICT IPA FORMAT>"
+            }
+
+            कृपया सुनिश्चित करें कि:
+            - सभी जानकारी हिंदी भाषा के अनुरूप और सटीक हो,
+            - परिभाषा और उदाहरण वाक्य अंग्रेज़ी परिभाषा के अनुसार सटीक हों,
+            - phonetic_IPA STRICT IPA फ़ॉर्मेट में हो,
+            - part_of_speech अंग्रेज़ी में ही हो।`,
+        
+        es: `Por favor, proporcione un objeto JSON para la palabra "${wordText}" en español.  
+            La palabra proviene de la siguiente definición en inglés: "${englishDefinition}".  
+            La definición en español debe transmitir exactamente el mismo significado que esta definición en inglés.  
+            La oración de ejemplo también debe reflejar fielmente este significado.
+
+            {
+                "definition": "<definición de la palabra en español, usando solo la definición en inglés como contexto para el significado, no como traducción literal: ${englishDefinition}>",
+                "part_of_speech": "<parte del discurso — STRICTLY in English: noun, verb, adjective, adverb, pronoun, preposition, conjunction, interjection, determiner, exclamation, particle, expression>",
+                "gender": "<género de la palabra — DEBE ser estrictamente male, female o neutral>",
+                "difficulty": "<nivel de dificultad de la palabra: A1, A2, B1, B2, C1, C2>",
+                "example_sentence": "<Por favor, proporcione la traducción directa de la siguiente frase en inglés: «${englishSentence}». La traducción debe estar completamente en español, incluir naturalmente la palabra '${wordText}' y reflejar fielmente el significado dado por la definición en inglés: ${englishDefinition}>",
+                "phonetic_IPA": "<pronunciación de la palabra en FORMATO IPA STRICTO>"
+            }
+
+            Asegúrese de que:
+            - toda la información sea precisa y relevante para el español,
+            - la definición y la frase de ejemplo correspondan fielmente a la definición en inglés,
+            - phonetic_IPA esté en FORMATO IPA STRICTO,
+            - part_of_speech esté estrictamente en inglés.`
     };
 
     return promptTemplates[langCode] || promptTemplates["en"];
