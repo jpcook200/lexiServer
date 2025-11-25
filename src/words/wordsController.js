@@ -6,7 +6,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 const difficulties = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
-const freeWPDLimit = 15;
+const freeWPDLimit = 10;
 const getLanguageName = (code) => {
     const lang = commonLanguages.find(l => l.code === code);
     return lang ? lang.name : null;
