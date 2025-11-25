@@ -62,7 +62,7 @@ const getDailyWords = async (req, res) => {
         
         //needs to early return in peoduxctioun
         if (localDatetime && !datetimeValid(localDatetime) && process.env.NODE_ENV === 'production') {
-            res.status(401).json({ error: "Client datetime is not valid or out of sync." });
+            return res.status(401).json({ error: "Client datetime is not valid or out of sync." });
         }
         
         let wordsResults = []
@@ -101,7 +101,7 @@ const getDailyWords = async (req, res) => {
     } catch (error) {
         
         console.error("Error fetching daily words:", error);
-        res.status(500).json({ error });
+        return res.status(500).json({ error });
     }
 }
 
