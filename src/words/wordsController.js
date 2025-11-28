@@ -163,10 +163,8 @@ const getWordsCount = async (req, res) => {
 const getNewTranslations = async (req, res) => {
     console.log("getNewTranslations called with body:", req.body);
     const { wordIds, newNativeLang } = req.body;
-    const parsedWordIds = JSON.parse(wordIds);
-    
     try {
-        const { rows } = await pool.query(`SELECT * FROM translations WHERE lang_code = $1 AND word_id = ANY($2);`, [newNativeLang, parsedWordIds]);
+        const { rows } = await pool.query(`SELECT * FROM translations WHERE lang_code = $1 AND word_id = ANY($2);`, [newNativeLang, wordIds]);
 
         if(rows.length === 0) {
             return res.status(404).json({ error: "No translations found for the provided word IDs and language." });
