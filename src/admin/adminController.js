@@ -3,7 +3,7 @@ const queries = require("./adminQueries");
 const OpenAI = require("openai");
 const { z } = require("zod");
 const { getWordsArrayFromCSV, getLanguageName } = require("../words/wordsHelpers");
-const { promptsByLanguage, getPromptByLanguage } = require("./prompts");
+const { promptsByLanguage, getPromptByLanguage, getPronunciationPrompts } = require("./prompts");
 const player = require('play-sound')({});
 const { categories } = require("../../commonLanguages")
 
@@ -80,6 +80,10 @@ const wordSchema = z.object({
     example_sentence: z.string(),
     phonetic_IPA: z.string().min(1),
     
+});
+
+const pronunciationSchema = z.object({
+    phonetic_IPA: z.string().min(1).max(100),
 });
 
 
@@ -533,6 +537,79 @@ const addEnglishWords = async (req, res) => {
     }
 }
 
+const editPronunciations = async (req, res) => { 
+    const { languageCode, lowerIndex, upperIndex, all } = req.body;
+    let count = 0
+    try {
+        const { rows: words } = await pool.query(`
+            SELECT 
+                w.id,
+                t.word AS word,
+                t.definition AS definition
+            FROM words w
+            LEFT JOIN translations t
+                ON w.id = t.word_id
+                AND t.lang_code = $1
+                order by id`,
+            [languageCode]);
+        
+        const wordsToProcess =
+            upperIndex === 0 && lowerIndex > 0
+                ? words.slice(lowerIndex - 1)   // from lowerIndex to the end
+                : all
+                ? words
+                : words.slice(lowerIndex - 1, upperIndex);
+        
+        for (const row of wordsToProcess) {
+            const wordId = row.id;
+            const word = row.word;
+            const definition = row.definition;
+
+            if (!word || !definition) {
+                console.log(`Skipping word ID ${wordId} due to missing word or definition.`);
+                continue;
+            }
+
+            const prompt = getPronunciationPrompts(word, definition, lang);
+
+            const response = await client.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [{ role: "user", content: prompt }],
+                response_format: { type: "json_object" },
+            });
+
+            let data;
+            try {
+                data = JSON.parse(response.choices[0].message.content);
+            } catch (jsonErr) {
+                throw new Error("Invalid JSON returned by OpenAI");
+            }
+
+            const validated = pronunciationSchema.parse(data);
+
+            await pool.query(
+                `
+                UPDATE translations
+                    SET pronunciation = $1
+                WHERE word_id = $2 AND lang_code = $3
+                `,
+                [validated.phonetic_IPA, wordId, lang]
+            );
+            count ++
+            console.log(`✅ Updated pronunciation for word ID ${wordId}: ${word} -> ${validated.phonetic_IPA}`);
+            console.log(count)
+            return res.status(200).json({ message: "Pronunciations updated successfully.", count });
+        }
+
+            
+    }
+    catch (e) { 
+        console.error("Error redoing pronunciations:", e);
+        return res.status(500).json({ error: "Error redoing pronunciations." });
+        
+    }
+}
+
 module.exports = {
     getFilteredWords,
     translateWordsToLanguage,
@@ -543,4 +620,5 @@ module.exports = {
     togglePremium,
     togglePrivate,
     addEnglishWords,
+    editPronunciations
 };

@@ -12,6 +12,7 @@ router.put('/update-translation/:id/:langCode', controller.editTranslation);
 router.put('/toggle-private', controller.togglePrivate);
 router.put('/toggle-premium', controller.togglePremium);
 router.post('/add-english-words', controller.addEnglishWords);
+router.put('/edit-pronunciations', controller.editPronunciations);
 
 
 module.exports = router;
