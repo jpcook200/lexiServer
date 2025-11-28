@@ -161,6 +161,7 @@ const getWordsCount = async (req, res) => {
 };
 
 const getNewTranslations = async (req, res) => {
+    console.log("getNewTranslations called with body:", req.body);
     const { wordIds, newNativeLang } = req.body;
     const parsedWordIds = JSON.parse(wordIds);
     
