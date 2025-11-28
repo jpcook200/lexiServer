@@ -160,9 +160,28 @@ const getWordsCount = async (req, res) => {
     }
 };
 
+const getNewTranslations = async (req, res) => {
+    const { wordIds, newNativeLang } = req.body;
+    const parsedWordIds = JSON.parse(wordIds);
+    
+    try {
+        const { rows } = await pool.query(`SELECT * FROM translations WHERE lang_code = $1 AND word_id = ANY($2);`, [newNativeLang, parsedWordIds]);
+
+        if(rows.length === 0) {
+            return res.status(404).json({ error: "No translations found for the provided word IDs and language." });
+        }
+
+        return res.json(rows);
+    } catch (error) { 
+        console.error("Error fetching new translations:", error);
+        return res.status(500).json({ error: "Failed to fetch new translations" });
+    }
+}
+
 
 module.exports = {
     getDailyWords,
     textToSpeech,
-    getWordsCount
+    getWordsCount,
+    getNewTranslations
 }

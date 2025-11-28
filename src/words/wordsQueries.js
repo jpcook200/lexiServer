@@ -52,6 +52,7 @@ LIMIT $4;
 `;
 
 
+
 module.exports = {
     getWords,
     getFreeWords

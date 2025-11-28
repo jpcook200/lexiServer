@@ -66,5 +66,6 @@ const validateSubscription = async (req, res, next) => {
 router.post('/get-daily', appAuth, validateSubscription, controller.getDailyWords);
 router.post('/text-to-speech', appAuth, controller.textToSpeech);
 router.get('/get-count', appAuth, controller.getWordsCount);
+router.post('/get-new-translations', appAuth, controller.getNewTranslations);
 
 module.exports = router
