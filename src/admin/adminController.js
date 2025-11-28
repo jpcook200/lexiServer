@@ -538,6 +538,7 @@ const addEnglishWords = async (req, res) => {
 }
 
 const editPronunciations = async (req, res) => { 
+    console.log("running")
     const { languageCode, lowerIndex, upperIndex, all } = req.body;
     let count = 0
     try {
