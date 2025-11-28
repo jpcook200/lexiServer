@@ -538,7 +538,6 @@ const addEnglishWords = async (req, res) => {
 }
 
 const editPronunciations = async (req, res) => { 
-    console.log("running")
     const { languageCode, lowerIndex, upperIndex, all } = req.body;
     let count = 0
     try {
@@ -571,7 +570,7 @@ const editPronunciations = async (req, res) => {
                 continue;
             }
 
-            const prompt = getPronunciationPrompts(word, definition, lang);
+            const prompt = getPronunciationPrompts(word, definition, languageCode);
 
             const response = await client.chat.completions.create({
                 model: "gpt-4o-mini",
