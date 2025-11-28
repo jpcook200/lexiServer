@@ -3,7 +3,7 @@ const queries = require("./adminQueries");
 const OpenAI = require("openai");
 const { z } = require("zod");
 const { getWordsArrayFromCSV, getLanguageName } = require("../words/wordsHelpers");
-const { promptsByLanguage, getPromptByLanguage, getPronunciationPrompts } = require("./prompts");
+const { getPromptByLanguage, getPronunciationPrompts } = require("./prompts");
 const player = require('play-sound')({});
 const { categories } = require("../../commonLanguages")
 
@@ -83,7 +83,7 @@ const wordSchema = z.object({
 });
 
 const pronunciationSchema = z.object({
-    phonetic_IPA: z.string().min(1).max(100),
+    phonetic_IPA: z.string().min(1).max(35),
 });
 
 
@@ -539,6 +539,7 @@ const addEnglishWords = async (req, res) => {
 
 const editPronunciations = async (req, res) => { 
     const { languageCode, lowerIndex, upperIndex, all } = req.body;
+    console.log(req.body)
     let count = 0
     try {
         const { rows: words } = await pool.query(`
@@ -558,7 +559,9 @@ const editPronunciations = async (req, res) => {
                 ? words.slice(lowerIndex - 1)   // from lowerIndex to the end
                 : all
                 ? words
-                : words.slice(lowerIndex - 1, upperIndex);
+                    : words.slice(lowerIndex - 1, upperIndex);
+        
+        console.log(wordsToProcess.length)
         
         for (const row of wordsToProcess) {
             const wordId = row.id;
@@ -593,14 +596,15 @@ const editPronunciations = async (req, res) => {
                     SET pronunciation = $1
                 WHERE word_id = $2 AND lang_code = $3
                 `,
-                [validated.phonetic_IPA, wordId, lang]
+                [validated.phonetic_IPA, wordId, languageCode]
             );
             count ++
             console.log(`✅ Updated pronunciation for word ID ${wordId}: ${word} -> ${validated.phonetic_IPA}`);
             console.log(count)
-            return res.status(200).json({ message: "Pronunciations updated successfully.", count });
+            
         }
-
+        
+        return res.status(200).json({ message: "Pronunciations updated successfully.", count });
             
     }
     catch (e) { 
