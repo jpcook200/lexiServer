@@ -7,7 +7,7 @@ const { getPromptByLanguage, getPronunciationPrompts } = require("./prompts");
 const player = require('play-sound')({});
 const { categories } = require("../../commonLanguages")
 
-const model = "openai"
+const model = "ds"
 
 const client =
   model === "openai"
@@ -83,7 +83,7 @@ const wordSchema = z.object({
 });
 
 const pronunciationSchema = z.object({
-    phonetic_IPA: z.string().min(1).max(35),
+    phonetic_IPA: z.string().min(1).max(50),
 });
 
 
@@ -539,7 +539,6 @@ const addEnglishWords = async (req, res) => {
 
 const editPronunciations = async (req, res) => { 
     const { languageCode, lowerIndex, upperIndex, all } = req.body;
-    console.log(req.body)
     let count = 0
     try {
         const { rows: words } = await pool.query(`
@@ -551,7 +550,7 @@ const editPronunciations = async (req, res) => {
             LEFT JOIN translations t
                 ON w.id = t.word_id
                 AND t.lang_code = $1
-                order by id`,
+                order by w.id`,
             [languageCode]);
         
         const wordsToProcess =
@@ -561,7 +560,6 @@ const editPronunciations = async (req, res) => {
                 ? words
                     : words.slice(lowerIndex - 1, upperIndex);
         
-        console.log(wordsToProcess.length)
         
         for (const row of wordsToProcess) {
             const wordId = row.id;
@@ -576,7 +574,7 @@ const editPronunciations = async (req, res) => {
             const prompt = getPronunciationPrompts(word, definition, languageCode);
 
             const response = await client.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: model === "openai" ? "gpt-4o-mini" : "deepseek-chat",
                 messages: [{ role: "user", content: prompt }],
                 response_format: { type: "json_object" },
             });

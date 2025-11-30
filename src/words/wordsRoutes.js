@@ -53,8 +53,12 @@ const validateSubscription = async (req, res, next) => {
         }
     })
     console.log(response)
+    if(!response.ok) {
+        console.error('Apple subscription verification failed:', response.statusText);
+        req.userAccessLevel = 'free';
+        return next();
+    }
     const data = await response.json();
-    console.log('Apple subscription data:', data);
     if (data.data) { 
         req.userAccessLevel = 'pro';
     } else {
