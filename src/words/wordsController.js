@@ -6,7 +6,8 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 const difficulties = ['a1', 'a2', 'b1', 'b2', 'c1', 'c2'];
-const freeWPDLimit = 10;
+const freeWPDLimit = 15;
+const proLimit = 30;
 const getLanguageName = (code) => {
     const lang = commonLanguages.find(l => l.code === code);
     return lang ? lang.name : null;
@@ -58,6 +59,10 @@ const getDailyWords = async (req, res) => {
 
         if (!userPremium && limit > freeWPDLimit) { 
             return res.status(403).json({ words: [], error: `Free users can only request up to ${freeWPDLimit} words per day.` });
+        }
+
+        if (limit > proLimit) { 
+            return res.status(403).json({ words: [], error: `Pro users can only request up to ${proLimit} words per day.` });
         }
         
         //needs to early return in peoduxctioun
