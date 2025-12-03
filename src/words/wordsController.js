@@ -42,7 +42,7 @@ const getDailyWords = async (req, res) => {
     const localDatetime = req.body.localDatetime;
     const userPremium = req.userAccessLevel === 'pro';
     const getDemoWords = req.body.getDemoWords || false;
-    
+    console.log(getDemoWords)
     const parsedExcludeIds = excludeIds.map(id => JSON.parse(id)); 
     try {
         if(!nativeLang || !learningLang || !difficulty || !limit) {
@@ -74,7 +74,7 @@ const getDailyWords = async (req, res) => {
         let wordsResults = []
         
         //if fist day, get demoi words first
-        if (getDemoWords) {
+        if (getDemoWords === true || getDemoWords === 'true') {
             if (!userPremium) {
                 const { rows: freeRows } = await pool.query(queries.getFreeDemoWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
                 wordsResults = freeRows;
