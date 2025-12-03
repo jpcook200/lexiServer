@@ -41,6 +41,7 @@ const getDailyWords = async (req, res) => {
     const excludeIds = req.body.excludeIds || [];
     const localDatetime = req.body.localDatetime;
     const userPremium = req.userAccessLevel === 'pro';
+    const getDemoWords = req.body.getDemoWords || false;
     
     const parsedExcludeIds = excludeIds.map(id => JSON.parse(id)); 
     try {
@@ -71,18 +72,31 @@ const getDailyWords = async (req, res) => {
         }
         
         let wordsResults = []
-        //get words from db
-        if (!userPremium) {
-            const { rows: freeRows } = await pool.query(queries.getFreeWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
-            wordsResults = freeRows;
-        } else { 
-            const { rows: premiumRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
-            wordsResults = premiumRows;
+        
+        //if fist day, get demoi words first
+        if (getDemoWords) {
+            if (!userPremium) {
+                const { rows: freeRows } = await pool.query(queries.getFreeDemoWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+                wordsResults = freeRows;
+            } else {
+                const { rows: premiumRows } = await pool.query(queries.getDemoWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+                wordsResults = premiumRows;
+            }
+        }
+        //if after getting demo words, theres not enough rows, fetch normal words
+        if (wordsResults.length < limit) { 
+            if (!userPremium) {
+                const { rows: freeRows } = await pool.query(queries.getFreeWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+                wordsResults = [...wordsResults, ...freeRows];
+            } else { 
+                const { rows: premiumRows } = await pool.query(queries.getWords, [nativeLang, learningLang, difficulty, limit, parsedExcludeIds]);
+                wordsResults = [...wordsResults, ...premiumRows];
+            }
         }
         
         let difficultyIndex = difficulties.indexOf(difficulty);
         
-        //if rows returns are not enough
+        //if rows returns are still not enough incerase to the next difficulty
         while (wordsResults.length < limit) { 
             if (difficultyIndex >= difficulties.length - 1) {
                 return res.json({words: wordsResults, lastSet: true});
