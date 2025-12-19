@@ -154,8 +154,6 @@ const getWordsCount = async (req, res) => {
         const langCode = req.query.langCode;
         const premium = req.query.premium === 'true';
 
-        console.log("Running count with:", { langCode, premium });
-
         let query = `
             SELECT COUNT(*) AS count
             FROM words w
@@ -170,7 +168,6 @@ const getWordsCount = async (req, res) => {
         }
 
         const { rows } = await pool.query(query, [langCode]);
-        console.log(rows)
         return res.json({ count: rows[0].count });
 
     } catch (error) {
